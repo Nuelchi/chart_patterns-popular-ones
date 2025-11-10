@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import sys
 
 
-from chart_patterns.chart_patterns.utils import check_ohlc_names
+from .utils import check_ohlc_names
 from plotly.subplots import make_subplots
 from tqdm import tqdm
 from typing import Dict, List, Union

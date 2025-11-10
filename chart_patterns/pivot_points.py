@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd 
 
 
-from chart_patterns.chart_patterns.utils import check_ohlc_names
+from .utils import check_ohlc_names
 from tqdm import tqdm
 from typing import Union
 

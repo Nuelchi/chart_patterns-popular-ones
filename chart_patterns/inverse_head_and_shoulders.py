@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd 
 import plotly.graph_objects as go
 
-from chart_patterns.chart_patterns.charts_utils import find_points
-from chart_patterns.chart_patterns.pivot_points import find_all_pivot_points
+from .charts_utils import find_points
+from .pivot_points import find_all_pivot_points
 from scipy.stats import linregress
 from tqdm import tqdm
 from typing import Tuple
