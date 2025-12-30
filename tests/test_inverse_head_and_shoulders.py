@@ -3,7 +3,7 @@ import pytest
 import os 
 
 
-from chart_patterns.chart_patterns.inverse_head_and_shoulders import find_inverse_head_and_shoulders
+from chart_patterns.flag import find_inverse_head_and_shoulders
 
 
 def test_find_inverse_head_and_shoulders():

@@ -1,16 +1,13 @@
 import pandas as pd 
 import pytest
 import os 
+import sys
 
-
-
-from chart_patterns.chart_patterns.head_and_shoulders import find_head_and_shoulders
+from chart_patterns.head_and_shoulders import find_head_and_shoulders
 
 
 def test_find_head_and_shoulders():
-    """
-    Test finding the head and shoulders pattern
-    """
+    """ Test finding head and shoulders chart pattern """
     
     ohlc = pd.read_csv("./data/eurusd-4h.csv")
     ohlc = ohlc.iloc[4100:4400,:].reset_index()

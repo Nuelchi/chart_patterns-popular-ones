@@ -9,6 +9,7 @@ import os
 import pandas as pd
 import plotly.graph_objects as go
 import sys
+import numpy as np
 
 
 from .utils import check_ohlc_names
@@ -41,6 +42,64 @@ def set_theme(fig: go.Candlestick, theme: Dict[str,str] = {"bg_color": "black", 
     fig.update_xaxes(color=theme["xaxes_color"]) 
     fig.update_yaxes(color=theme["yaxes_color"])       
     
+    return fig
+
+
+def _add_nshape_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick) -> go.Candlestick:
+    """Add the N-shape pattern elements (A->B->C->D polyline + entry line/marker) to the figure object."""
+
+    if isinstance(row, pd.DataFrame):
+        n_idx = row["nshape_idx"].tolist()[0].tolist()
+        n_pts = row["nshape_point"].tolist()[0].tolist()
+        entry_level = float(row["nshape_entry_level"].tolist()[0]) if "nshape_entry_level" in row.columns and not pd.isna(row["nshape_entry_level"].tolist()[0]) else np.nan
+        entry_idx = int(row["nshape_entry_idx"].tolist()[0]) if "nshape_entry_idx" in row.columns and not pd.isna(row["nshape_entry_idx"].tolist()[0]) else -1
+    else:
+        n_idx = row[1]["nshape_idx"].tolist() if hasattr(row[1]["nshape_idx"], "tolist") else row[1]["nshape_idx"]
+        n_pts = row[1]["nshape_point"].tolist() if hasattr(row[1]["nshape_point"], "tolist") else row[1]["nshape_point"]
+        entry_level = float(row[1]["nshape_entry_level"]) if "nshape_entry_level" in row[1].index and not pd.isna(row[1]["nshape_entry_level"]) else np.nan
+        entry_idx = int(row[1]["nshape_entry_idx"]) if "nshape_entry_idx" in row[1].index and not pd.isna(row[1]["nshape_entry_idx"]) else -1
+
+    if not n_idx or len(n_idx) < 4:
+        return fig
+
+    # First 4 points are A,B,C,D. Fifth point (optional) is E retest idx.
+    abcd_x = [int(x) for x in n_idx[:4]]
+    abcd_y = [float(y) for y in n_pts[:4]]
+
+    fig.add_scatter(
+        x=abcd_x,
+        y=abcd_y,
+        mode="lines",
+        name=None,
+        line=dict(color="royalblue", width=4),
+        showlegend=False,
+    )
+
+    if not pd.isna(entry_level):
+        # Draw entry level from A to (E if present) else D
+        x0 = int(abcd_x[0])
+        x1 = int(entry_idx) if entry_idx != -1 else int(abcd_x[-1])
+        fig.add_shape(
+            type="line",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=float(entry_level),
+            y1=float(entry_level),
+            line=dict(color="white", width=2),
+        )
+
+    if entry_idx != -1 and not pd.isna(entry_level):
+        fig.add_scatter(
+            x=[int(entry_idx)],
+            y=[float(entry_level)],
+            mode="markers",
+            marker=dict(size=14, color="yellow", symbol="square"),
+            name=None,
+            showlegend=False,
+        )
+
     return fig
 
 
@@ -92,6 +151,139 @@ def _plot_candlestick(ohlc: pd.DataFrame, plot_obs:int = 500, fig =None ) -> go.
     
     
     return fig 
+
+
+def _add_sbi_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick) -> go.Candlestick:
+    """Add the SBI pattern elements (pivot polyline + OB box) to the figure object."""
+
+    if isinstance(row, pd.DataFrame):
+        sbi_idx = row["sbi_idx"].tolist()[0].tolist()
+        sbi_pts = row["sbi_point"].tolist()[0].tolist()
+        ob_idx = int(row["sbi_ob_idx"].tolist()[0])
+        ob_high = float(row["sbi_ob_high"].tolist()[0])
+        ob_low = float(row["sbi_ob_low"].tolist()[0])
+        entry_idx = int(row["sbi_entry_idx"].tolist()[0]) if "sbi_entry_idx" in row.columns and not pd.isna(row["sbi_entry_idx"].tolist()[0]) else -1
+        entry_price = float(row["sbi_entry_price"].tolist()[0]) if "sbi_entry_price" in row.columns and not pd.isna(row["sbi_entry_price"].tolist()[0]) else np.nan
+        sbi_type = str(row["sbi_type"].tolist()[0]) if "sbi_type" in row.columns else ""
+        liq_level = float(row["sbi_liq_level"].tolist()[0]) if "sbi_liq_level" in row.columns and not pd.isna(row["sbi_liq_level"].tolist()[0]) else np.nan
+        liq_idx = int(row["sbi_liq_idx"].tolist()[0]) if "sbi_liq_idx" in row.columns and not pd.isna(row["sbi_liq_idx"].tolist()[0]) else -1
+        sweep_idx = int(row["sbi_sweep_idx"].tolist()[0]) if "sbi_sweep_idx" in row.columns and not pd.isna(row["sbi_sweep_idx"].tolist()[0]) else -1
+        sweep_price = float(row["sbi_sweep_price"].tolist()[0]) if "sbi_sweep_price" in row.columns and not pd.isna(row["sbi_sweep_price"].tolist()[0]) else np.nan
+        entry_status = str(row["sbi_entry_status"].tolist()[0]) if "sbi_entry_status" in row.columns else ""
+        internal_bos_idx = int(row["sbi_internal_bos_idx"].tolist()[0]) if "sbi_internal_bos_idx" in row.columns and not pd.isna(row["sbi_internal_bos_idx"].tolist()[0]) else -1
+        internal_bos_level = float(row["sbi_internal_bos_level"].tolist()[0]) if "sbi_internal_bos_level" in row.columns and not pd.isna(row["sbi_internal_bos_level"].tolist()[0]) else np.nan
+    else:
+        sbi_idx = row[1]["sbi_idx"].tolist() if hasattr(row[1]["sbi_idx"], "tolist") else row[1]["sbi_idx"]
+        sbi_pts = row[1]["sbi_point"].tolist() if hasattr(row[1]["sbi_point"], "tolist") else row[1]["sbi_point"]
+        ob_idx = int(row[1]["sbi_ob_idx"]) if not pd.isna(row[1]["sbi_ob_idx"]) else -1
+        ob_high = float(row[1]["sbi_ob_high"]) if not pd.isna(row[1]["sbi_ob_high"]) else np.nan
+        ob_low = float(row[1]["sbi_ob_low"]) if not pd.isna(row[1]["sbi_ob_low"]) else np.nan
+        entry_idx = int(row[1]["sbi_entry_idx"]) if "sbi_entry_idx" in row[1].index and not pd.isna(row[1]["sbi_entry_idx"]) else -1
+        entry_price = float(row[1]["sbi_entry_price"]) if "sbi_entry_price" in row[1].index and not pd.isna(row[1]["sbi_entry_price"]) else np.nan
+        sbi_type = str(row[1]["sbi_type"]) if "sbi_type" in row[1].index else ""
+        liq_level = float(row[1]["sbi_liq_level"]) if "sbi_liq_level" in row[1].index and not pd.isna(row[1]["sbi_liq_level"]) else np.nan
+        liq_idx = int(row[1]["sbi_liq_idx"]) if "sbi_liq_idx" in row[1].index and not pd.isna(row[1]["sbi_liq_idx"]) else -1
+        sweep_idx = int(row[1]["sbi_sweep_idx"]) if "sbi_sweep_idx" in row[1].index and not pd.isna(row[1]["sbi_sweep_idx"]) else -1
+        sweep_price = float(row[1]["sbi_sweep_price"]) if "sbi_sweep_price" in row[1].index and not pd.isna(row[1]["sbi_sweep_price"]) else np.nan
+        entry_status = str(row[1]["sbi_entry_status"]) if "sbi_entry_status" in row[1].index else ""
+        internal_bos_idx = int(row[1]["sbi_internal_bos_idx"]) if "sbi_internal_bos_idx" in row[1].index and not pd.isna(row[1]["sbi_internal_bos_idx"]) else -1
+        internal_bos_level = float(row[1]["sbi_internal_bos_level"]) if "sbi_internal_bos_level" in row[1].index and not pd.isna(row[1]["sbi_internal_bos_level"]) else np.nan
+
+    # Extend the structure line after BOS towards internal liquidity, sweep and entry.
+    # This matches the SBI sketch: break (BOS) -> internal liq -> sweep -> return/pending entry.
+    ext_x = [int(x) for x in sbi_idx]
+    ext_y = [float(y) for y in sbi_pts]
+    if liq_idx != -1 and not pd.isna(liq_level):
+        if int(liq_idx) not in ext_x:
+            ext_x.append(int(liq_idx))
+            ext_y.append(float(liq_level))
+    if internal_bos_idx != -1 and not pd.isna(internal_bos_level):
+        if int(internal_bos_idx) not in ext_x:
+            ext_x.append(int(internal_bos_idx))
+            ext_y.append(float(internal_bos_level))
+    if sweep_idx != -1 and not pd.isna(sweep_price):
+        if int(sweep_idx) not in ext_x:
+            ext_x.append(int(sweep_idx))
+            ext_y.append(float(sweep_price))
+    if entry_idx != -1 and not pd.isna(entry_price):
+        if int(entry_idx) not in ext_x:
+            ext_x.append(int(entry_idx))
+            ext_y.append(float(entry_price))
+
+    fig.add_scatter(
+        x=ext_x,
+        y=ext_y,
+        mode="lines",
+        name=None,
+        line=dict(color="royalblue", width=4),
+        showlegend=False,
+    )
+
+    if internal_bos_idx != -1 and not pd.isna(internal_bos_level):
+        fig.add_scatter(
+            x=[int(internal_bos_idx)],
+            y=[float(internal_bos_level)],
+            mode="markers",
+            marker=dict(size=10, color="white", symbol="circle"),
+            name=None,
+            showlegend=False,
+        )
+
+    # Liquidity level (the level that gets swept)
+    if liq_idx != -1 and not pd.isna(liq_level):
+        x0 = liq_idx
+        x1 = entry_idx if entry_idx != -1 else int(sbi_idx[-1])
+        fig.add_shape(
+            type="line",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=liq_level,
+            y1=liq_level,
+            line=dict(color="#7CFF7C", width=2, dash="dot"),
+        )
+
+    # Sweep marker
+    if sweep_idx != -1 and not pd.isna(sweep_price):
+        sweep_color = "#FF6B6B" if sbi_type == "buy" else "#7CFF7C"
+        fig.add_scatter(
+            x=[int(sweep_idx)],
+            y=[float(sweep_price)],
+            mode="markers",
+            marker=dict(size=14, color=sweep_color, symbol="x"),
+            name=None,
+            showlegend=False,
+        )
+
+    if ob_idx != -1 and not (pd.isna(ob_high) or pd.isna(ob_low)):
+        # Plot a simple OB rectangle spanning a small window around the OB candle
+        x0 = ob_idx - 1
+        x1 = ob_idx + 1
+        fig.add_shape(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=ob_low,
+            y1=ob_high,
+            line=dict(color="orange", width=2),
+            fillcolor="rgba(255,165,0,0.25)",
+        )
+
+    if entry_idx != -1 and not pd.isna(entry_price):
+        symbol = "square" if entry_status == "hit" else "square-open"
+        fig.add_scatter(
+            x=[int(entry_idx)],
+            y=[float(entry_price)],
+            mode="markers",
+            marker=dict(size=14, color="yellow", symbol=symbol),
+            name=None,
+            showlegend=False,
+        )
+
+    return fig
 
 
 def _plot_pivot_points(ohlc: pd.DataFrame, fig: go.Candlestick, pivot_name: int = "pivot") -> go.Candlestick:
@@ -345,7 +537,7 @@ def _add_flag_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick)
 
     return fig 
 
-def save_chart_pattern(fig: go.Candlestick, pattern: str, row: Union[None,tuple]) -> None:
+def save_chart_pattern(fig: go.Candlestick, pattern: str, row: Union[None,tuple], image_subdir: Union[None, str] = None) -> None:
     """
     Save the chart pattern plot
     
@@ -361,20 +553,22 @@ def save_chart_pattern(fig: go.Candlestick, pattern: str, row: Union[None,tuple]
     :return (None)
     """
     
+    out_dir_name = image_subdir if image_subdir else pattern
+
     # Create the images/flag folder if it does not exist
     if not os.path.exists(os.path.join(os.path.realpath(''), "images")):
             os.mkdir(os.path.join(os.path.realpath(''), "images"))
            
-    if not  os.path.exists(os.path.join(os.path.realpath(''), "images", pattern)):
-         os.mkdir(os.path.join(os.path.realpath(''), "images", pattern))
+    if not  os.path.exists(os.path.join(os.path.realpath(''), "images", out_dir_name)):
+         os.mkdir(os.path.join(os.path.realpath(''), "images", out_dir_name))
     
     if row:        
-        fig.write_image(os.path.join(os.path.realpath(''), "images", pattern, f"fig{row[0]}.png"))
+        fig.write_image(os.path.join(os.path.realpath(''), "images", out_dir_name, f"fig{row[0]}.png"))
     else:
-        fig.write_image(os.path.join(os.path.realpath(''), "images", pattern, f"fig-{pattern}.png"))
+        fig.write_image(os.path.join(os.path.realpath(''), "images", out_dir_name, f"fig-{out_dir_name}.png"))
                    
 def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag", 
-                          save: bool = True, lookback: int = 60, pivot_name: str = "pivot") -> None:
+                          save: bool = True, lookback: int = 60, pivot_name: str = "pivot", image_subdir: Union[None, str] = None) -> None:
     """
     Display the specified chart pattern. 
     
@@ -416,6 +610,10 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
         pattern_points = ohlc.loc[ohlc["chart_type"]=="triangle"]
     elif pattern == "pennant":
         pattern_points = ohlc.loc[ohlc["chart_type"]=="pennant"]
+    elif pattern == "sbi":
+        pattern_points = ohlc.loc[ohlc["chart_type"]=="sbi"]
+    elif pattern == "nshape":
+        pattern_points = ohlc.loc[ohlc["chart_type"]=="nshape"]
             
     
     if len(pattern_points) == 0: # There is no pattern found
@@ -443,9 +641,13 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
                 fig  = _add_triangle_pattern_plot(pattern_points, fig)
         elif pattern == "pennant":
             fig = _add_pennant_pattern_plot(pattern_points, fig)
+        elif pattern == "sbi":
+            fig = _add_sbi_pattern_plot(pattern_points, fig)
+        elif pattern == "nshape":
+            fig = _add_nshape_pattern_plot(pattern_points, fig)
                 
         if save:
-            save_chart_pattern(fig, pattern, None)
+            save_chart_pattern(fig, pattern, None, image_subdir=image_subdir)
         else:
             fig.show()
     elif len(pattern_points) > 1:
@@ -486,10 +688,14 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
                 fig  = _add_triangle_pattern_plot(row, fig)
             elif pattern == "pennant":
                 fig = _add_pennant_pattern_plot(row, fig)
+            elif pattern == "sbi":
+                fig = _add_sbi_pattern_plot(row, fig)
+            elif pattern == "nshape":
+                fig = _add_nshape_pattern_plot(row, fig)
             
             # Save the figures 
-            save_chart_pattern(fig, pattern, row)
+            save_chart_pattern(fig, pattern, row, image_subdir=image_subdir)
                 
       if save:
-        sys.exit()
+        return
               

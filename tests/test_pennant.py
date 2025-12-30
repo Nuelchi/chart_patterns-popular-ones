@@ -2,13 +2,11 @@ import pandas as pd
 import pytest
 import os
 
-from chart_patterns.chart_patterns.pennant import find_pennant
+from chart_patterns.pennant import find_pennant
 
 
-def test_find_pennant():
-    """
-    Test finding the pennant patterns
-    """
+def test_find_pennant_pattern():
+    """ Test finding the pennant chart pattern """
     
     ohlc = pd.read_csv("./data/eurusd-4h.csv")
     ohlc = ohlc.iloc[3400:3600,:].reset_index()

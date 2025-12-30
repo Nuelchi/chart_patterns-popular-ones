@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 import os
 
-from chart_patterns.chart_patterns.flag import find_flag_pattern
+from chart_patterns.flag import find_flag_pattern
 
 
 def test_find_flag_pattern():
