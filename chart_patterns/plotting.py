@@ -153,6 +153,53 @@ def _plot_candlestick(ohlc: pd.DataFrame, plot_obs:int = 500, fig =None ) -> go.
     return fig 
 
 
+def _add_rectangle_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick) -> go.Candlestick:
+    if isinstance(row, pd.DataFrame):
+        rect_high = float(row["rectangle_high"].tolist()[0])
+        rect_low = float(row["rectangle_low"].tolist()[0])
+        high_idx = row["rectangle_high_idx"].tolist()[0]
+        low_idx = row["rectangle_low_idx"].tolist()[0]
+        rect_point = int(row["rectangle_point"].tolist()[0])
+    else:
+        rect_high = float(row[1]["rectangle_high"]) if not pd.isna(row[1]["rectangle_high"]) else np.nan
+        rect_low = float(row[1]["rectangle_low"]) if not pd.isna(row[1]["rectangle_low"]) else np.nan
+        high_idx = row[1]["rectangle_high_idx"]
+        low_idx = row[1]["rectangle_low_idx"]
+        rect_point = int(row[1]["rectangle_point"]) if not pd.isna(row[1]["rectangle_point"]) else -1
+
+    if rect_point == -1 or pd.isna(rect_high) or pd.isna(rect_low):
+        return fig
+
+    x0_candidates = []
+    try:
+        if high_idx is not None:
+            x0_candidates.extend([int(x) for x in list(high_idx) if not pd.isna(x)])
+    except Exception:
+        pass
+    try:
+        if low_idx is not None:
+            x0_candidates.extend([int(x) for x in list(low_idx) if not pd.isna(x)])
+    except Exception:
+        pass
+
+    x0 = int(min(x0_candidates)) if x0_candidates else int(max(rect_point - 20, 0))
+    x1 = int(rect_point)
+
+    fig.add_shape(
+        type="rect",
+        xref="x",
+        yref="y",
+        x0=x0,
+        x1=x1,
+        y0=rect_low,
+        y1=rect_high,
+        line=dict(color="white", width=2),
+        fillcolor="rgba(255,255,255,0.12)",
+    )
+
+    return fig
+
+
 def _add_sbi_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick) -> go.Candlestick:
     """Add the SBI pattern elements (pivot polyline + OB box) to the figure object."""
 
@@ -614,6 +661,8 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
         pattern_points = ohlc.loc[ohlc["chart_type"]=="sbi"]
     elif pattern == "nshape":
         pattern_points = ohlc.loc[ohlc["chart_type"]=="nshape"]
+    elif pattern == "rectangle":
+        pattern_points = ohlc.loc[ohlc["chart_type"]=="rectangle"]
             
     
     if len(pattern_points) == 0: # There is no pattern found
@@ -645,6 +694,8 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
             fig = _add_sbi_pattern_plot(pattern_points, fig)
         elif pattern == "nshape":
             fig = _add_nshape_pattern_plot(pattern_points, fig)
+        elif pattern == "rectangle":
+            fig = _add_rectangle_pattern_plot(pattern_points, fig)
                 
         if save:
             save_chart_pattern(fig, pattern, None, image_subdir=image_subdir)
@@ -692,6 +743,8 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
                 fig = _add_sbi_pattern_plot(row, fig)
             elif pattern == "nshape":
                 fig = _add_nshape_pattern_plot(row, fig)
+            elif pattern == "rectangle":
+                fig = _add_rectangle_pattern_plot(row, fig)
             
             # Save the figures 
             save_chart_pattern(fig, pattern, row, image_subdir=image_subdir)
