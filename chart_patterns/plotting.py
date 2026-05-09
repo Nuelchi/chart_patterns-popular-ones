@@ -45,6 +45,58 @@ def set_theme(fig: go.Candlestick, theme: Dict[str,str] = {"bg_color": "black", 
     return fig
 
 
+def _add_liq_sweep_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick) -> go.Candlestick:
+    if isinstance(row, pd.DataFrame):
+        sweep_type = str(row["liq_sweep_type"].tolist()[0])
+        level = float(row["liq_sweep_level"].tolist()[0]) if not pd.isna(row["liq_sweep_level"].tolist()[0]) else np.nan
+        pivot_idx = int(row["liq_sweep_pivot_idx"].tolist()[0]) if "liq_sweep_pivot_idx" in row.columns else -1
+        sweep_idx = int(row["liq_sweep_sweep_idx"].tolist()[0]) if "liq_sweep_sweep_idx" in row.columns else -1
+        zlow = float(row["liq_sweep_zone_low"].tolist()[0]) if "liq_sweep_zone_low" in row.columns and not pd.isna(row["liq_sweep_zone_low"].tolist()[0]) else np.nan
+        zhigh = float(row["liq_sweep_zone_high"].tolist()[0]) if "liq_sweep_zone_high" in row.columns and not pd.isna(row["liq_sweep_zone_high"].tolist()[0]) else np.nan
+    else:
+        sweep_type = str(row[1].get("liq_sweep_type", ""))
+        level = float(row[1]["liq_sweep_level"]) if "liq_sweep_level" in row[1].index and not pd.isna(row[1]["liq_sweep_level"]) else np.nan
+        pivot_idx = int(row[1].get("liq_sweep_pivot_idx", -1))
+        sweep_idx = int(row[1].get("liq_sweep_sweep_idx", -1))
+        zlow = float(row[1]["liq_sweep_zone_low"]) if "liq_sweep_zone_low" in row[1].index and not pd.isna(row[1]["liq_sweep_zone_low"]) else np.nan
+        zhigh = float(row[1]["liq_sweep_zone_high"]) if "liq_sweep_zone_high" in row[1].index and not pd.isna(row[1]["liq_sweep_zone_high"]) else np.nan
+
+    if sweep_idx == -1 or pd.isna(level) or pd.isna(zlow) or pd.isna(zhigh):
+        return fig
+
+    color = "#FF6B6B" if sweep_type == "bear" else "#7CFF7C"
+    fill = "rgba(255,107,107,0.20)" if sweep_type == "bear" else "rgba(124,255,124,0.20)"
+
+    # Horizontal liquidity level line
+    x0 = int(pivot_idx) if pivot_idx != -1 else int(max(sweep_idx - 30, 0))
+    x1 = int(sweep_idx)
+    fig.add_shape(
+        type="line",
+        xref="x",
+        yref="y",
+        x0=x0,
+        x1=x1,
+        y0=float(level),
+        y1=float(level),
+        line=dict(color=color, width=2, dash="dot"),
+    )
+
+    # Vertical sweep zone rectangle (T / inverted-T look)
+    fig.add_shape(
+        type="rect",
+        xref="x",
+        yref="y",
+        x0=float(sweep_idx) - 0.45,
+        x1=float(sweep_idx) + 0.45,
+        y0=float(zlow),
+        y1=float(zhigh),
+        line=dict(color=color, width=2),
+        fillcolor=fill,
+    )
+
+    return fig
+
+
 def _add_nshape_pattern_plot(row: Union[tuple, pd.DataFrame], fig: go.Candlestick) -> go.Candlestick:
     """Add the N-shape pattern elements (A->B->C->D polyline + entry line/marker) to the figure object."""
 
@@ -663,6 +715,8 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
         pattern_points = ohlc.loc[ohlc["chart_type"]=="nshape"]
     elif pattern == "rectangle":
         pattern_points = ohlc.loc[ohlc["chart_type"]=="rectangle"]
+    elif pattern == "liq_sweep":
+        pattern_points = ohlc.loc[ohlc["chart_type"]=="liq_sweep"]
             
     
     if len(pattern_points) == 0: # There is no pattern found
@@ -696,6 +750,8 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
             fig = _add_nshape_pattern_plot(pattern_points, fig)
         elif pattern == "rectangle":
             fig = _add_rectangle_pattern_plot(pattern_points, fig)
+        elif pattern == "liq_sweep":
+            fig = _add_liq_sweep_pattern_plot(pattern_points, fig)
                 
         if save:
             save_chart_pattern(fig, pattern, None, image_subdir=image_subdir)
@@ -745,6 +801,8 @@ def display_chart_pattern(ohlc: pd.DataFrame, pattern: str = "flag",
                 fig = _add_nshape_pattern_plot(row, fig)
             elif pattern == "rectangle":
                 fig = _add_rectangle_pattern_plot(row, fig)
+            elif pattern == "liq_sweep":
+                fig = _add_liq_sweep_pattern_plot(row, fig)
             
             # Save the figures 
             save_chart_pattern(fig, pattern, row, image_subdir=image_subdir)
